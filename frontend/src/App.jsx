@@ -1,39 +1,155 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FaHospitalAlt,
   FaAmbulance,
   FaUserShield,
   FaUserMd,
   FaArrowLeft,
+  FaMapMarkerAlt,
+  FaBed,
+  FaWind,
+  FaHeartbeat,
 } from "react-icons/fa";
 
 function App() {
   const [page, setPage] = useState("landing");
   const [role, setRole] = useState("");
+  const [hospitals, setHospitals] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    location: "",
+    patientName: "",
+    age: "",
+    condition: "",
+    bloodGroup: "",
+    allergies: "",
+    visibleCondition: "",
+    visibleInjury: "",
+    ambulanceNeeded: "",
+  });
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/hospitals")
+      .then((res) => res.json())
+      .then((data) => setHospitals(data))
+      .catch((err) => console.log(err));
+
+    fetch("http://localhost:5000/api/emergency-requests")
+      .then((res) => res.json())
+      .then((data) => setRequests(data))
+      .catch((err) => console.log(err));
+  }, []);
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const submitEmergencyRequest = () => {
+    if (!formData.location.trim()) {
+      alert("Please enter location first.");
+      return;
+    }
+
+    if (role === "patient" && !formData.condition.trim()) {
+      alert("Please enter patient condition or symptoms.");
+      return;
+    }
+
+    if (role === "stranger" && !formData.visibleCondition.trim()) {
+      alert("Please select visible condition.");
+      return;
+    }
+  setLoading(true);
+    fetch("http://localhost:5000/api/emergency-request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        role,
+        ...formData,
+      }),
+    })
+      .then((res) => res.json())
+      .then(() => {
+        fetch("http://localhost:5000/api/emergency-requests")
+          .then((res) => res.json())
+          .then((data) => setRequests(data));
+
+       setTimeout(() => {
+  setLoading(false);
+  setPage("results");
+}, 1500);
+      })
+      .catch((err) => console.log(err));
+  };
 
   return (
     <div className="app">
+      {loading && (
+  <div className="loading-screen">
+    <div className="loading-card">
+      <div className="loading-pulse">🚑</div>
+      <h2>Searching Nearest ICU Hospitals...</h2>
+      <p>Checking beds, oxygen, ventilators and ambulance availability.</p>
+    </div>
+  </div>
+)}
       {page === "landing" && (
         <section className="landing-page">
-          <div className="landing-content">
-            <div className="logo-badge">
-              <FaHospitalAlt />
+          <div className="landing-left">
+            <div className="brand-pill">
+              <FaHospitalAlt /> Emergency ICU Network
             </div>
 
-            <h1>ICU Orchestrator</h1>
+            <h1>
+              Find ICU Beds <br />
+              When Every Second Matters.
+            </h1>
+
             <p>
-              A real-time emergency platform that connects patients, ambulances,
-              and hospitals to find ICU beds, oxygen, ventilators, and urgent
-              care support.
+              ICU Orchestrator connects patients, ambulances, and hospitals to
+              locate ICU beds, oxygen support, ventilators, and emergency care
+              in real time.
             </p>
 
-            <button onClick={() => setPage("auth")}>Get Started</button>
+            <div className="hero-actions">
+              <button onClick={() => setPage("auth")}>
+                Start Emergency Request
+              </button>
+              <span>Live hospital coordination prototype</span>
+            </div>
           </div>
 
-          <div className="visual-card">
-            <FaAmbulance />
-            <h2>Emergency Care Network</h2>
-            <p>Fast ICU discovery • Hospital availability • Ambulance support</p>
+          <div className="landing-right">
+            <div className="main-emergency-card">
+              <FaAmbulance />
+              <h2>Ambulance Dispatch</h2>
+              <p>
+                Nearest ICU-ready hospital found fast with live emergency
+                resource visibility.
+              </p>
+            </div>
+
+            <div className="mini-stats">
+              <div>
+                <strong>24/7</strong>
+                <span>Emergency Access</span>
+              </div>
+              <div>
+                <strong>Live</strong>
+                <span>ICU Availability</span>
+              </div>
+              <div>
+                <strong>6 min</strong>
+                <span>Ambulance ETA</span>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -45,15 +161,22 @@ function App() {
           </button>
 
           <div className="auth-card">
-            <h1>Continue to ICU Orchestrator</h1>
+            <div className="page-icon">
+              <FaUserShield />
+            </div>
+
+            <h1>Continue Safely</h1>
             <p>
-              Login for saved details, or skip directly during an emergency.
+              Login to keep medical details saved, or skip directly if this is
+              an emergency situation.
             </p>
 
             <div className="auth-buttons">
               <button onClick={() => setPage("role")}>Login</button>
               <button onClick={() => setPage("role")}>Sign Up</button>
-              <button onClick={() => setPage("role")}>Skip for Emergency</button>
+              <button onClick={() => setPage("role")}>
+                Skip Emergency Login
+              </button>
             </div>
           </div>
         </section>
@@ -66,19 +189,37 @@ function App() {
           </button>
 
           <div className="role-card">
-            <h1>Who is using the app?</h1>
-            <p>Select your role so we can show the correct emergency flow.</p>
+            <h1>Who is using the platform?</h1>
+            <p>
+              We adjust the emergency form based on what information you may
+              actually know.
+            </p>
 
             <div className="role-options">
-              <button onClick={() => { setRole("patient"); setPage("request"); }}>
+              <button
+                onClick={() => {
+                  setRole("patient");
+                  setPage("request");
+                }}
+              >
                 <FaUserShield /> Patient / Relative
               </button>
 
-              <button onClick={() => { setRole("stranger"); setPage("request"); }}>
+              <button
+                onClick={() => {
+                  setRole("stranger");
+                  setPage("request");
+                }}
+              >
                 <FaAmbulance /> Stranger / Bystander
               </button>
 
-              <button onClick={() => { setRole("hospital"); setPage("dashboard"); }}>
+              <button
+                onClick={() => {
+                  setRole("hospital");
+                  setPage("dashboard");
+                }}
+              >
                 <FaUserMd /> Hospital Worker
               </button>
             </div>
@@ -94,24 +235,61 @@ function App() {
 
           <div className="form-card">
             <h1>Emergency Request</h1>
-            <p>Fill only the details available. Unknown details can be skipped.</p>
+            <p>
+              Fill only what is known. The system can still search hospitals
+              even when details are missing.
+            </p>
 
-            <input placeholder="Current location / accident location" />
+            <input
+              name="location"
+              value={formData.location}
+              onChange={handleInputChange}
+              placeholder="Current location / accident location"
+            />
 
             {role === "patient" && (
               <>
-                <input placeholder="Patient name (optional)" />
-                <input placeholder="Age (optional)" />
-                <input placeholder="Symptoms / condition" />
-                <input placeholder="Blood group (optional)" />
-                <input placeholder="Allergies (optional)" />
+                <input
+                  name="patientName"
+                  value={formData.patientName}
+                  onChange={handleInputChange}
+                  placeholder="Patient name (optional)"
+                />
+                <input
+                  name="age"
+                  value={formData.age}
+                  onChange={handleInputChange}
+                  placeholder="Age (optional)"
+                />
+                <input
+                  name="condition"
+                  value={formData.condition}
+                  onChange={handleInputChange}
+                  placeholder="Symptoms / condition"
+                />
+                <input
+                  name="bloodGroup"
+                  value={formData.bloodGroup}
+                  onChange={handleInputChange}
+                  placeholder="Blood group (optional)"
+                />
+                <input
+                  name="allergies"
+                  value={formData.allergies}
+                  onChange={handleInputChange}
+                  placeholder="Allergies (optional)"
+                />
               </>
             )}
 
             {role === "stranger" && (
               <>
-                <select>
-                  <option>Visible condition</option>
+                <select
+                  name="visibleCondition"
+                  value={formData.visibleCondition}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Visible condition</option>
                   <option>Unconscious</option>
                   <option>Bleeding</option>
                   <option>Breathing difficulty</option>
@@ -119,10 +297,19 @@ function App() {
                   <option>Not sure</option>
                 </select>
 
-                <input placeholder="Visible injury / situation" />
+                <input
+                  name="visibleInjury"
+                  value={formData.visibleInjury}
+                  onChange={handleInputChange}
+                  placeholder="Visible injury / situation"
+                />
 
-                <select>
-                  <option>Need ambulance?</option>
+                <select
+                  name="ambulanceNeeded"
+                  value={formData.ambulanceNeeded}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Need ambulance?</option>
                   <option>Yes</option>
                   <option>No</option>
                   <option>Not sure</option>
@@ -130,7 +317,7 @@ function App() {
               </>
             )}
 
-            <button onClick={() => setPage("results")}>Find Nearest ICU</button>
+            <button onClick={submitEmergencyRequest}>Find Nearest ICU</button>
           </div>
         </section>
       )}
@@ -141,29 +328,36 @@ function App() {
             <FaArrowLeft /> Back
           </button>
 
-          <h1>Nearest Available Hospitals</h1>
-          <p className="page-subtitle">
-            Based on ICU beds, oxygen support, ventilators and emergency availability.
-          </p>
+          <div className="section-header">
+            <h1>Nearest Available Hospitals</h1>
+            <p>
+              Matched using ICU beds, oxygen support, ambulance availability,
+              and emergency readiness.
+            </p>
+          </div>
 
           <div className="result-grid">
-            <div className="hospital-result-card">
-              <h2>City Care Hospital</h2>
-              <p>📍 2.1 km away</p>
-              <p>🛏 ICU Beds: 5</p>
-              <p>💨 Oxygen: Available</p>
-              <p>🚑 Ambulance: Available</p>
-              <button onClick={() => setPage("tracking")}>Send Request</button>
-            </div>
+            {hospitals.map((hospital) => (
+              <div className="hospital-result-card" key={hospital.id}>
+                <h2>{hospital.name}</h2>
+                <p>
+                  <FaMapMarkerAlt /> {hospital.distance} away
+                </p>
+                <p>
+                  <FaBed /> ICU Beds: {hospital.icuBeds}
+                </p>
+                <p>
+                  <FaWind /> Oxygen: {hospital.oxygen}
+                </p>
+                <p>
+                  <FaAmbulance /> Ambulance: {hospital.ambulance}
+                </p>
 
-            <div className="hospital-result-card">
-              <h2>Metro Emergency Center</h2>
-              <p>📍 3.8 km away</p>
-              <p>🛏 ICU Beds: 2</p>
-              <p>💨 Oxygen: Low</p>
-              <p>🚑 Ambulance: Available</p>
-              <button onClick={() => setPage("tracking")}>Send Request</button>
-            </div>
+                <button onClick={() => setPage("tracking")}>
+                  Send Request
+                </button>
+              </div>
+            ))}
 
             <div className="map-card">
               <h2>Live Emergency Map</h2>
@@ -182,10 +376,13 @@ function App() {
             <FaArrowLeft /> Back
           </button>
 
-          <h1>Request Sent Successfully</h1>
-          <p className="page-subtitle">
-            Your emergency request has been sent to the selected hospital.
-          </p>
+          <div className="section-header">
+            <h1>Emergency Request Active</h1>
+            <p>
+              Your request has been sent to the selected hospital for review and
+              ambulance coordination.
+            </p>
+          </div>
 
           <div className="dashboard-grid">
             <div>
@@ -202,14 +399,14 @@ function App() {
 
             <div>
               <h2>ICU</h2>
-              <strong>Reserved</strong>
-              <span>Temporary hold</span>
+              <strong>Hold</strong>
+              <span>Temporary reservation</span>
             </div>
 
             <div>
-              <h2>Emergency</h2>
-              <strong>Active</strong>
-              <span>Case priority</span>
+              <h2>Priority</h2>
+              <strong>High</strong>
+              <span>Emergency case</span>
             </div>
           </div>
         </section>
@@ -221,35 +418,80 @@ function App() {
             <FaArrowLeft /> Back
           </button>
 
-          <h1>Hospital Resource Dashboard</h1>
-          <p className="page-subtitle">
-            Update ICU beds, oxygen stock, ventilators, and incoming requests.
-          </p>
+          <div className="section-header">
+            <h1>Hospital Resource Dashboard</h1>
+            <p>
+              Update ICU capacity, oxygen stock, ventilators, and incoming
+              emergency requests.
+            </p>
+          </div>
 
           <div className="dashboard-grid">
             <div>
-              <h2>ICU Beds</h2>
+              <h2>
+                <FaBed /> ICU Beds
+              </h2>
               <strong>12</strong>
               <span>Available</span>
             </div>
 
             <div>
-              <h2>Oxygen</h2>
+              <h2>
+                <FaWind /> Oxygen
+              </h2>
               <strong>78%</strong>
               <span>Stock Level</span>
             </div>
 
             <div>
-              <h2>Ventilators</h2>
+              <h2>
+                <FaHeartbeat /> Ventilators
+              </h2>
               <strong>6</strong>
               <span>Available</span>
             </div>
 
             <div>
-              <h2>Requests</h2>
-              <strong>4</strong>
-              <span>Pending</span>
+              <h2>
+                <FaAmbulance /> Requests
+              </h2>
+              <strong>{requests.length}</strong>
+              <span>Incoming Cases</span>
             </div>
+          </div>
+
+          <div className="hospital-requests-section">
+            <h2>Incoming Emergency Requests</h2>
+
+            {requests.length === 0 ? (
+              <p>No emergency requests yet.</p>
+            ) : (
+              requests.map((request) => (
+                <div className="request-card" key={request.id}>
+                  <h3>Emergency Case #{request.id}</h3>
+
+                  <p>
+                    <strong>Role:</strong> {request.role}
+                  </p>
+
+                  <p>
+                    <strong>Location:</strong>{" "}
+                    {request.location || "Not provided"}
+                  </p>
+
+                  <p>
+                    <strong>Condition:</strong>{" "}
+                    {request.condition ||
+                      request.visibleCondition ||
+                      "Not provided"}
+                  </p>
+
+                  <p>
+                    <strong>Status:</strong> {request.status}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </section>
       )}
